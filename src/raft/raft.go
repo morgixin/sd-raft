@@ -18,7 +18,6 @@ const (
 type LogEntry struct {
 	index int // indice no log
 	term  int // term de quando a entrada foi recebida
-
 }
 
 type AppendEntry struct {
@@ -40,26 +39,22 @@ type ApplyMsg struct {
 
 // A Go object implementing a single Raft peer.
 type Raft struct {
-	mu        sync.Mutex          // Lock to protect shared access to this peer's state
-	peers     []*labrpc.ClientEnd // RPC end points of all peers
-	persister *Persister          // Object to hold this peer's persisted state
-	me        int                 // this peer's index into peers[]
-	
-	currentTerm int             // ultimo termo que o servidor viu
-	votedFor    int             // id do candidato que recebeu voto no termo atual
-
-	role          Role          // diz o papel do servidor
-	leader        int           // mantem o indice do lider atual (nao usado)
-	numVotes      int           // mantem numero de votos recebidos
-	electionTimer time.Duration // timer de eleicao do no
-	timeout       time.Time     // tempo em que comeca o timer de eleicao do no
+	mu            sync.Mutex          // Lock to protect shared access to this peer's state
+	peers         []*labrpc.ClientEnd // RPC end points of all peers
+	persister     *Persister          // Object to hold this peer's persisted state
+	me            int                 // this peer's index into peers[]
+	currentTerm   int                 // ultimo termo que o servidor viu
+	votedFor      int                 // id do candidato que recebeu voto no termo atual
+	role          Role                // diz o papel do servidor
+	leader        int                 // mantem o indice do lider atual (nao usado)
+	numVotes      int                 // mantem numero de votos recebidos
+	electionTimer time.Duration       // timer de eleicao do no
+	timeout       time.Time           // tempo em que comeca o timer de eleicao do no
 }
 
 // return currentTerm and whether this server
 // believes it is the leader.
 func (rf *Raft) GetState() (int, bool) {
-	// Your code here (2A).
-
 	if rf.role == Leader {
 		return rf.currentTerm, true
 	}
@@ -69,9 +64,8 @@ func (rf *Raft) GetState() (int, bool) {
 // funcao que simula o comportamento do lider, enviando heartbeats
 // para todos os followers
 func (rf *Raft) SendAppendEntries() {
-
 	for {
-		time.Sleep(time.Duration(50 * time.Millisecond)) // pausa de 50 milisegundos para enviar os heartbeats
+		time.Sleep(50 * time.Millisecond) // pausa de 50 milisegundos para enviar os heartbeats
 		rf.mu.Lock()
 		currentTerm := rf.currentTerm // salvando termo atual (caso mude em uma eleicao)
 		rf.mu.Unlock()
@@ -110,13 +104,12 @@ func (rf *Raft) SendAppendEntries() {
 
 // funcao para monitorar os timers de eleicao de cada no
 func (rf *Raft) CheckElectionTimers() {
-
 	rf.mu.Lock()
-	var currentTerm = rf.currentTerm // salvando termo atual do no para caso ele mude em outra eleicao
+	currentTerm := rf.currentTerm // salvando termo atual do no para caso ele mude em outra eleicao
 	rf.mu.Unlock()
 
 	for {
-		//verifica se o termo atual do no aumentou, indicando que ja ocorreu uma eleicao. verifica se o no ja se tornou lider. 
+		// verifica se o termo atual do no aumentou, indicando que ja ocorreu uma eleicao. verifica se o no ja se tornou lider.
 		rf.mu.Lock()
 		if currentTerm < rf.currentTerm || rf.role == Leader { // verifica se o termo atual do no aumentou, indicando que ja ocorreu uma eleicao
 			rf.mu.Unlock()
@@ -136,7 +129,7 @@ func (rf *Raft) CheckElectionTimers() {
 func (rf *Raft) BeginElection() {
 	// incrementa o term do no, ele vira candidato e vota em si mesmo
 	rf.currentTerm++
-	var currentTerm = rf.currentTerm
+	currentTerm := rf.currentTerm
 	rf.role = Candidate
 	rf.votedFor = rf.me
 	rf.numVotes++
@@ -167,14 +160,11 @@ func (rf *Raft) BeginElection() {
 				go rf.SendAppendEntries() // funcao para enviar heartbeats paralelamente
 				return
 			}
-
 		}
-
 	}
 
 	// enviando pedidos de votos aos peers
 	for i := 0; i < len(rf.peers); i++ {
-
 		if i == rf.me {
 			continue
 		}
@@ -194,13 +184,10 @@ func (rf *Raft) BeginElection() {
 			if rf.peers[no].Call("Raft.RequestVote", &args, &reply) {
 				HandleVoteResponse(reply, currentTerm) // chama funcao para lidar com a resposta do follower
 			}
-
 		}(i)
-
 	}
 
 	go rf.CheckElectionTimers() // reinicia monitoramento de timer para caso haja problema com eleição atual
-
 }
 
 func (rf *Raft) Persist() {
@@ -227,7 +214,6 @@ type RequestVoteReply struct {
 }
 
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
-	
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
@@ -252,7 +238,6 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 }
 
 func (rf *Raft) ReceiveEntry(entry *AppendEntry, reply *AppendEntryReply) {
-
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	reply.EntryReceived = false
@@ -270,7 +255,6 @@ func (rf *Raft) ReceiveEntry(entry *AppendEntry, reply *AppendEntryReply) {
 			rf.votedFor = -1
 			rf.role = Follower
 			rf.timeout = time.Now()
-
 			go rf.CheckElectionTimers()
 		}
 		reply.EntryReceived = true // indica recebimento da append message (heartbeat confirma que lider esta vivo)
@@ -296,8 +280,7 @@ func (rf *Raft) Kill() {
 	// Your code here, if desired.
 }
 
-func Make(peers []*labrpc.ClientEnd, me int,
-	persister *Persister, applyCh chan ApplyMsg) *Raft {
+func Make(peers []*labrpc.ClientEnd, me int, persister *Persister, applyCh chan ApplyMsg) *Raft {
 	rf := &Raft{}
 	rf.peers = peers
 	rf.persister = persister
